@@ -23,14 +23,12 @@ const sampleUsers = [
     password: 'Admin123!',
     firstName: 'Admin',
     lastName: 'User',
-    fullName: 'Admin User',
     role: 'admin',
     isActive: true,
     subscription: {
-      plan: 'Enterprise',
+      plan: 'enterprise',
       tokens: 10000000,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      maxProjects: 100
     }
   },
   {
@@ -38,14 +36,12 @@ const sampleUsers = [
     password: 'Demo123!',
     firstName: 'Demo',
     lastName: 'User',
-    fullName: 'Demo User',
     role: 'user',
     isActive: true,
     subscription: {
-      plan: 'Pro',
+      plan: 'pro',
       tokens: 1000000,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+      maxProjects: 20
     }
   },
   {
@@ -53,14 +49,12 @@ const sampleUsers = [
     password: 'Dev123!',
     firstName: 'John',
     lastName: 'Developer',
-    fullName: 'John Developer',
-    role: 'user',
+    role: 'developer',
     isActive: true,
     subscription: {
-      plan: 'Free',
+      plan: 'free',
       tokens: 100000,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      maxProjects: 5
     }
   }
 ];
@@ -68,70 +62,66 @@ const sampleUsers = [
 const sampleProjects = [
   {
     name: 'E-Commerce Platform',
-    description: 'Full-stack e-commerce platform with React frontend, Node.js backend, and MongoDB database. Features include user authentication, product catalog, shopping cart, and payment integration.',
+    description: 'Full-stack e-commerce platform with React frontend, Node.js backend, and MongoDB database.',
     type: 'web-app',
     framework: 'react',
     language: 'javascript',
-    techStack: ['React', 'Node.js', 'Express', 'MongoDB', 'Stripe', 'Redux'],
-    status: 'active',
+    status: 'production',
     deployment: {
       status: 'deployed',
       url: 'https://demo-ecommerce.pythagora.ai',
-      lastDeployedAt: new Date()
+      provider: 'vercel',
+      lastDeployed: new Date()
     }
   },
   {
     name: 'AI Chatbot Service',
-    description: 'Intelligent customer support chatbot powered by GPT-4. Handles common customer inquiries, provides product recommendations, and escalates complex issues to human agents.',
+    description: 'Intelligent customer support chatbot powered by GPT-4.',
     type: 'ai-model',
     framework: 'fastapi',
     language: 'python',
-    techStack: ['Python', 'FastAPI', 'OpenAI GPT-4', 'PostgreSQL', 'Redis', 'Docker'],
     status: 'testing',
     deployment: {
-      status: 'testing',
-      url: null
+      status: 'not-deployed',
+      provider: 'aws'
     }
   },
   {
     name: 'Mobile Banking App',
-    description: 'Secure cross-platform mobile banking application with biometric authentication, real-time transactions, and comprehensive account management features.',
+    description: 'Secure cross-platform mobile banking application with biometric authentication.',
     type: 'mobile-app',
-    framework: 'react-native',
+    framework: 'other',
     language: 'typescript',
-    techStack: ['React Native', 'TypeScript', 'Redux', 'Firebase', 'FaceID', 'TouchID'],
     status: 'development',
     deployment: {
       status: 'not-deployed',
-      url: null
+      provider: 'custom'
     }
   },
   {
     name: 'Analytics Dashboard API',
-    description: 'RESTful API for business analytics dashboard. Provides real-time data aggregation, visualization endpoints, and customizable reporting features.',
+    description: 'RESTful API for business analytics dashboard with real-time data.',
     type: 'api',
     framework: 'express',
     language: 'javascript',
-    techStack: ['Node.js', 'Express', 'MongoDB', 'Redis', 'Chart.js', 'JWT'],
-    status: 'active',
+    status: 'production',
     deployment: {
       status: 'deployed',
       url: 'https://api-analytics.pythagora.ai',
-      lastDeployedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      provider: 'heroku',
+      lastDeployed: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     }
   },
   {
-    name: 'Task Automation Framework',
-    description: 'Automated workflow system for business process automation. Supports scheduled tasks, webhooks, and integration with popular SaaS platforms.',
-    type: 'automation',
-    framework: 'nodejs',
-    language: 'javascript',
-    techStack: ['Node.js', 'Bull Queue', 'Redis', 'MongoDB', 'Webhooks', 'Cron'],
-    status: 'active',
+    name: 'Data Science Notebook',
+    description: 'Jupyter notebook environment for data analysis and ML experiments.',
+    type: 'data-science',
+    framework: 'other',
+    language: 'python',
+    status: 'development',
     deployment: {
-      status: 'deployed',
-      url: null,
-      lastDeployedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+      status: 'not-deployed',
+      provider: 'custom'
     }
   }
 ];
@@ -140,39 +130,73 @@ const sampleAIProviders = [
   {
     name: 'openai',
     displayName: 'OpenAI',
-    apiKey: 'demo-openai-key-placeholder',
+    apiKey: 'sk-demo-openai-key-placeholder',
     baseUrl: 'https://api.openai.com/v1',
-    models: ['gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo'],
-    enabled: true,
-    isDefault: true,
+    isActive: true,
     priority: 1,
-    rateLimit: {
+    models: [
+      {
+        id: 'gpt-4-turbo-preview',
+        name: 'GPT-4 Turbo',
+        description: 'Most capable GPT-4 model',
+        contextLength: 128000,
+        inputCost: 0.01,
+        outputCost: 0.03,
+        isAvailable: true,
+        capabilities: ['chat', 'completion', 'function-calling'],
+        category: 'advanced'
+      },
+      {
+        id: 'gpt-3.5-turbo',
+        name: 'GPT-3.5 Turbo',
+        description: 'Fast and efficient model',
+        contextLength: 16385,
+        inputCost: 0.0005,
+        outputCost: 0.0015,
+        isAvailable: true,
+        capabilities: ['chat', 'completion'],
+        category: 'standard'
+      }
+    ],
+    limits: {
       requestsPerMinute: 60,
       tokensPerMinute: 150000
-    },
-    usage: {
-      totalRequests: 1523,
-      totalTokens: 456789,
-      totalCost: 45.67
     }
   },
   {
     name: 'anthropic',
     displayName: 'Anthropic',
-    apiKey: 'demo-anthropic-key-placeholder',
+    apiKey: 'sk-ant-demo-key-placeholder',
     baseUrl: 'https://api.anthropic.com',
-    models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'],
-    enabled: true,
-    isDefault: false,
+    isActive: true,
     priority: 2,
-    rateLimit: {
+    models: [
+      {
+        id: 'claude-3-opus',
+        name: 'Claude 3 Opus',
+        description: 'Most capable Claude model',
+        contextLength: 200000,
+        inputCost: 0.015,
+        outputCost: 0.075,
+        isAvailable: true,
+        capabilities: ['chat', 'analysis', 'coding'],
+        category: 'advanced'
+      },
+      {
+        id: 'claude-3-sonnet',
+        name: 'Claude 3 Sonnet',
+        description: 'Balanced performance model',
+        contextLength: 200000,
+        inputCost: 0.003,
+        outputCost: 0.015,
+        isAvailable: true,
+        capabilities: ['chat', 'analysis'],
+        category: 'standard'
+      }
+    ],
+    limits: {
       requestsPerMinute: 50,
       tokensPerMinute: 100000
-    },
-    usage: {
-      totalRequests: 892,
-      totalTokens: 234567,
-      totalCost: 23.45
     }
   }
 ];
