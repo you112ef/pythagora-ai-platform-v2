@@ -1,60 +1,120 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const Project = require('../models/Project');
-const User = require('../models/User');
 
 const router = express.Router();
+
+// Demo projects data
+const demoProjects = [
+  {
+    _id: 'proj_1',
+    name: 'E-commerce Platform',
+    description: 'A full-stack e-commerce platform with React frontend and Node.js backend',
+    type: 'web-app',
+    framework: 'react',
+    language: 'javascript',
+    status: 'active',
+    owner: {
+      _id: 'demo_user_123',
+      firstName: 'Demo',
+      lastName: 'User',
+      email: 'demo@pythagora.ai'
+    },
+    collaborators: [],
+    totalCollaborators: 0,
+    deployment: {
+      status: 'deployed',
+      url: 'https://demo-ecommerce.pythagora.ai'
+    },
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: 'proj_2',
+    name: 'AI Chatbot',
+    description: 'Intelligent chatbot using OpenAI GPT-4 for customer support',
+    type: 'ai-model',
+    framework: 'express',
+    language: 'python',
+    status: 'active',
+    owner: {
+      _id: 'demo_user_123',
+      firstName: 'Demo',
+      lastName: 'User',
+      email: 'demo@pythagora.ai'
+    },
+    collaborators: [],
+    totalCollaborators: 0,
+    deployment: {
+      status: 'testing',
+      url: null
+    },
+    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: 'proj_3',
+    name: 'Mobile Banking App',
+    description: 'Cross-platform mobile banking application with React Native',
+    type: 'mobile-app',
+    framework: 'react-native',
+    language: 'javascript',
+    status: 'development',
+    owner: {
+      _id: 'demo_user_123',
+      firstName: 'Demo',
+      lastName: 'User',
+      email: 'demo@pythagora.ai'
+    },
+    collaborators: [],
+    totalCollaborators: 0,
+    deployment: {
+      status: 'not-deployed',
+      url: null
+    },
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  }
+];
 
 // Get all projects for user
 router.get('/', async (req, res) => {
   try {
-    const userId = req.user.userId;
     const { page = 1, limit = 10, status, type, search } = req.query;
 
-    const query = {
-      $or: [
-        { owner: userId },
-        { 'collaborators.user': userId }
-      ],
-      isArchived: false
-    };
+    let filteredProjects = [...demoProjects];
 
-    if (status) query.status = status;
-    if (type) query.type = type;
+    // Apply filters
+    if (status) {
+      filteredProjects = filteredProjects.filter(p => p.status === status);
+    }
+    if (type) {
+      filteredProjects = filteredProjects.filter(p => p.type === type);
+    }
     if (search) {
-      query.$and = [
-        {
-          $or: [
-            { name: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } },
-            { tags: { $in: [new RegExp(search, 'i')] } }
-          ]
-        }
-      ];
+      const searchLower = search.toLowerCase();
+      filteredProjects = filteredProjects.filter(p => 
+        p.name.toLowerCase().includes(searchLower) ||
+        p.description.toLowerCase().includes(searchLower)
+      );
     }
 
-    const projects = await Project.find(query)
-      .populate('owner', 'firstName lastName email avatar')
-      .populate('collaborators.user', 'firstName lastName email avatar')
-      .sort({ updatedAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .exec();
-
-    const total = await Project.countDocuments(query);
+    // Pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedProjects = filteredProjects.slice(startIndex, endIndex);
 
     res.json({
       success: true,
       data: {
-        projects,
+        projects: paginatedProjects,
         pagination: {
-          current: parseInt(page),
-          pages: Math.ceil(total / limit),
-          total
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(filteredProjects.length / limit),
+          totalItems: filteredProjects.length,
+          itemsPerPage: parseInt(limit)
         }
       }
     });
-
   } catch (error) {
     console.error('Get projects error:', error);
     res.status(500).json({
@@ -67,13 +127,8 @@ router.get('/', async (req, res) => {
 // Get single project
 router.get('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.userId;
-
-    const project = await Project.findById(id)
-      .populate('owner', 'firstName lastName email avatar')
-      .populate('collaborators.user', 'firstName lastName email avatar');
-
+    const project = demoProjects.find(p => p._id === req.params.id);
+    
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -81,18 +136,10 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    if (!project.canAccess(userId)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied'
-      });
-    }
-
     res.json({
       success: true,
       data: { project }
     });
-
   } catch (error) {
     console.error('Get project error:', error);
     res.status(500).json({
@@ -106,10 +153,9 @@ router.get('/:id', async (req, res) => {
 router.post('/', [
   body('name').trim().notEmpty().withMessage('Project name is required'),
   body('description').optional().trim(),
-  body('type').optional().isIn(['web-app', 'mobile-app', 'api', 'desktop-app', 'ai-model', 'data-science']),
-  body('framework').optional().isIn(['react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt', 'express', 'fastapi', 'django', 'flask', 'spring', 'laravel', 'rails', 'other']),
-  body('language').optional().isIn(['javascript', 'typescript', 'python', 'java', 'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin', 'other']),
-  body('visibility').optional().isIn(['private', 'team', 'public'])
+  body('type').isIn(['web-app', 'mobile-app', 'api', 'desktop-app', 'ai-model']).withMessage('Invalid project type'),
+  body('framework').optional().trim(),
+  body('language').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -120,49 +166,39 @@ router.post('/', [
       });
     }
 
-    const userId = req.user.userId;
-    const { name, description, type, framework, language, visibility, tags } = req.body;
+    const { name, description, type, framework, language } = req.body;
 
-    // Check user's project limit
-    const user = await User.findById(userId);
-    const userProjects = await Project.countDocuments({
-      $or: [
-        { owner: userId },
-        { 'collaborators.user': userId }
-      ],
-      isArchived: false
-    });
-
-    if (userProjects >= user.subscription.maxProjects) {
-      return res.status(400).json({
-        success: false,
-        error: 'Project limit reached',
-        message: `You can only have ${user.subscription.maxProjects} projects on your current plan`
-      });
-    }
-
-    const project = new Project({
+    const newProject = {
+      _id: 'proj_' + Date.now(),
       name,
-      description,
-      type: type || 'web-app',
+      description: description || '',
+      type,
       framework: framework || 'react',
       language: language || 'javascript',
-      visibility: visibility || 'private',
-      owner: userId,
-      tags: tags || []
-    });
+      status: 'development',
+      owner: {
+        _id: 'demo_user_123',
+        firstName: 'Demo',
+        lastName: 'User',
+        email: 'demo@pythagora.ai'
+      },
+      collaborators: [],
+      totalCollaborators: 0,
+      deployment: {
+        status: 'not-deployed',
+        url: null
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-    await project.save();
-
-    // Populate the project data
-    await project.populate('owner', 'firstName lastName email avatar');
+    demoProjects.unshift(newProject);
 
     res.status(201).json({
       success: true,
       message: 'Project created successfully',
-      data: { project }
+      data: { project: newProject }
     });
-
   } catch (error) {
     console.error('Create project error:', error);
     res.status(500).json({
@@ -176,8 +212,8 @@ router.post('/', [
 router.put('/:id', [
   body('name').optional().trim().notEmpty(),
   body('description').optional().trim(),
-  body('status').optional().isIn(['draft', 'development', 'testing', 'staging', 'production', 'archived']),
-  body('visibility').optional().isIn(['private', 'team', 'public'])
+  body('status').optional().isIn(['development', 'testing', 'active', 'archived']),
+  body('type').optional().isIn(['web-app', 'mobile-app', 'api', 'desktop-app', 'ai-model'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -188,44 +224,27 @@ router.put('/:id', [
       });
     }
 
-    const { id } = req.params;
-    const userId = req.user.userId;
-    const updates = req.body;
-
-    const project = await Project.findById(id);
-    if (!project) {
+    const projectIndex = demoProjects.findIndex(p => p._id === req.params.id);
+    
+    if (projectIndex === -1) {
       return res.status(404).json({
         success: false,
         error: 'Project not found'
       });
     }
 
-    // Check permissions
-    const userRole = project.getUserRole(userId);
-    if (!userRole || (userRole === 'viewer' && updates.status)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Insufficient permissions'
-      });
-    }
-
-    // Update project
-    Object.keys(updates).forEach(key => {
-      if (updates[key] !== undefined) {
-        project[key] = updates[key];
-      }
-    });
-
-    await project.save();
-    await project.populate('owner', 'firstName lastName email avatar');
-    await project.populate('collaborators.user', 'firstName lastName email avatar');
+    const updates = req.body;
+    demoProjects[projectIndex] = {
+      ...demoProjects[projectIndex],
+      ...updates,
+      updatedAt: new Date()
+    };
 
     res.json({
       success: true,
       message: 'Project updated successfully',
-      data: { project }
+      data: { project: demoProjects[projectIndex] }
     });
-
   } catch (error) {
     console.error('Update project error:', error);
     res.status(500).json({
@@ -238,197 +257,26 @@ router.put('/:id', [
 // Delete project
 router.delete('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.userId;
-
-    const project = await Project.findById(id);
-    if (!project) {
+    const projectIndex = demoProjects.findIndex(p => p._id === req.params.id);
+    
+    if (projectIndex === -1) {
       return res.status(404).json({
         success: false,
         error: 'Project not found'
       });
     }
 
-    // Only owner can delete project
-    if (project.owner.toString() !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Only project owner can delete the project'
-      });
-    }
-
-    // Soft delete (archive)
-    project.isArchived = true;
-    await project.save();
+    demoProjects.splice(projectIndex, 1);
 
     res.json({
       success: true,
-      message: 'Project archived successfully'
+      message: 'Project deleted successfully'
     });
-
   } catch (error) {
     console.error('Delete project error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to delete project'
-    });
-  }
-});
-
-// Add collaborator
-router.post('/:id/collaborators', [
-  body('email').isEmail().withMessage('Valid email is required'),
-  body('role').optional().isIn(['viewer', 'editor', 'admin'])
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
-    const { id } = req.params;
-    const userId = req.user.userId;
-    const { email, role = 'editor' } = req.body;
-
-    const project = await Project.findById(id);
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found'
-      });
-    }
-
-    // Check if user is owner or admin
-    const userRole = project.getUserRole(userId);
-    if (!userRole || !['owner', 'admin'].includes(userRole)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Insufficient permissions'
-      });
-    }
-
-    // Find user by email
-    const collaborator = await User.findOne({ email });
-    if (!collaborator) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
-    // Check if already a collaborator
-    const existingCollab = project.collaborators.find(collab => 
-      collab.user.toString() === collaborator._id.toString()
-    );
-
-    if (existingCollab) {
-      return res.status(400).json({
-        success: false,
-        error: 'User is already a collaborator'
-      });
-    }
-
-    // Add collaborator
-    project.addCollaborator(collaborator._id, role);
-    await project.save();
-
-    await project.populate('collaborators.user', 'firstName lastName email avatar');
-
-    res.json({
-      success: true,
-      message: 'Collaborator added successfully',
-      data: { project }
-    });
-
-  } catch (error) {
-    console.error('Add collaborator error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to add collaborator'
-    });
-  }
-});
-
-// Remove collaborator
-router.delete('/:id/collaborators/:collaboratorId', async (req, res) => {
-  try {
-    const { id, collaboratorId } = req.params;
-    const userId = req.user.userId;
-
-    const project = await Project.findById(id);
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found'
-      });
-    }
-
-    // Check if user is owner or admin
-    const userRole = project.getUserRole(userId);
-    if (!userRole || !['owner', 'admin'].includes(userRole)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Insufficient permissions'
-      });
-    }
-
-    // Remove collaborator
-    project.removeCollaborator(collaboratorId);
-    await project.save();
-
-    await project.populate('collaborators.user', 'firstName lastName email avatar');
-
-    res.json({
-      success: true,
-      message: 'Collaborator removed successfully',
-      data: { project }
-    });
-
-  } catch (error) {
-    console.error('Remove collaborator error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to remove collaborator'
-    });
-  }
-});
-
-// Get project statistics
-router.get('/:id/stats', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.userId;
-
-    const project = await Project.findById(id);
-    if (!project || !project.canAccess(userId)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found or access denied'
-      });
-    }
-
-    const stats = {
-      totalCollaborators: project.totalCollaborators,
-      aiTokensUsed: project.aiFeatures.codeGeneration.tokensUsed,
-      testCoverage: project.tests.coverage,
-      deploymentStatus: project.deployment.status,
-      lastActivity: project.updatedAt,
-      createdAt: project.createdAt
-    };
-
-    res.json({
-      success: true,
-      data: { stats }
-    });
-
-  } catch (error) {
-    console.error('Get project stats error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get project statistics'
     });
   }
 });

@@ -1,63 +1,105 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const AIProvider = require('../models/AIProvider');
-const aiService = require('../services/aiService');
 
 const router = express.Router();
 
-// Get all AI providers for user
+// Demo AI providers data
+const demoProviders = [
+  {
+    id: 'provider_1',
+    name: 'openai',
+    displayName: 'OpenAI GPT-4',
+    isActive: true,
+    priority: 1,
+    models: [
+      { id: 'gpt-4', name: 'GPT-4', category: 'chat', description: 'Most capable GPT-4 model' },
+      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', category: 'chat', description: 'Fast and efficient' }
+    ],
+    usage: {
+      totalRequests: 1250,
+      totalTokens: 450000,
+      totalCost: 12.50
+    }
+  },
+  {
+    id: 'provider_2',
+    name: 'anthropic',
+    displayName: 'Anthropic Claude',
+    isActive: true,
+    priority: 2,
+    models: [
+      { id: 'claude-3-opus', name: 'Claude 3 Opus', category: 'chat', description: 'Most powerful Claude model' },
+      { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet', category: 'chat', description: 'Balanced performance' }
+    ],
+    usage: {
+      totalRequests: 890,
+      totalTokens: 320000,
+      totalCost: 8.90
+    }
+  }
+];
+
+// Get all AI providers
 router.get('/', async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const providers = await aiService.getAvailableProviders(userId);
-
     res.json({
       success: true,
-      data: { providers }
+      data: { providers: demoProviders }
     });
   } catch (error) {
     console.error('Get providers error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get AI providers'
+      error: 'Failed to fetch AI providers'
     });
   }
 });
 
-// Get single provider
-router.get('/:id', async (req, res) => {
+// Get all models
+router.get('/models/all', async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.userId;
+    const allModels = [];
+    const modelsByCategory = {};
 
-    const provider = await AIProvider.findOne({ _id: id, user: userId });
-    if (!provider) {
-      return res.status(404).json({
-        success: false,
-        error: 'Provider not found'
+    demoProviders.forEach(provider => {
+      provider.models.forEach(model => {
+        const modelWithProvider = {
+          ...model,
+          provider: provider.name,
+          providerId: provider.id
+        };
+        allModels.push(modelWithProvider);
+
+        if (!modelsByCategory[model.category]) {
+          modelsByCategory[model.category] = [];
+        }
+        modelsByCategory[model.category].push(modelWithProvider);
       });
-    }
+    });
 
     res.json({
       success: true,
-      data: { provider }
+      data: {
+        models: allModels,
+        modelsByCategory
+      }
     });
   } catch (error) {
-    console.error('Get provider error:', error);
+    console.error('Get models error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get provider'
+      error: 'Failed to fetch models'
     });
   }
 });
 
 // Add new AI provider
 router.post('/', [
-  body('name').isIn(['openai', 'anthropic', 'openrouter', 'custom']).withMessage('Invalid provider name'),
-  body('displayName').notEmpty().withMessage('Display name is required'),
-  body('apiKey').notEmpty().withMessage('API key is required'),
+  body('name').trim().notEmpty().withMessage('Provider name is required'),
+  body('displayName').trim().notEmpty().withMessage('Display name is required'),
+  body('apiKey').trim().notEmpty().withMessage('API key is required'),
   body('baseUrl').optional().isURL().withMessage('Invalid base URL'),
-  body('priority').optional().isInt({ min: 1, max: 10 }).withMessage('Priority must be between 1 and 10')
+  body('priority').optional().isInt({ min: 1, max: 5 }).withMessage('Priority must be between 1 and 5')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -68,47 +110,44 @@ router.post('/', [
       });
     }
 
-    const userId = req.user.userId;
-    const { name, displayName, apiKey, baseUrl, priority } = req.body;
+    const { name, displayName, apiKey, baseUrl, priority = 3 } = req.body;
 
-    // Check if provider already exists
-    const existingProvider = await AIProvider.findOne({ user: userId, name });
-    if (existingProvider) {
-      return res.status(400).json({
-        success: false,
-        error: 'Provider already exists'
-      });
-    }
-
-    const provider = await aiService.addProvider(userId, {
+    const newProvider = {
+      id: 'provider_' + Date.now(),
       name,
       displayName,
-      apiKey,
-      baseUrl,
-      priority
-    });
+      isActive: true,
+      priority,
+      models: [],
+      usage: {
+        totalRequests: 0,
+        totalTokens: 0,
+        totalCost: 0
+      }
+    };
+
+    demoProviders.push(newProvider);
 
     res.status(201).json({
       success: true,
       message: 'AI provider added successfully',
-      data: { provider }
+      data: { provider: newProvider }
     });
   } catch (error) {
     console.error('Add provider error:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to add AI provider'
+      error: 'Failed to add AI provider'
     });
   }
 });
 
 // Update AI provider
 router.put('/:id', [
-  body('displayName').optional().notEmpty(),
-  body('apiKey').optional().notEmpty(),
+  body('displayName').optional().trim().notEmpty(),
+  body('apiKey').optional().trim().notEmpty(),
   body('baseUrl').optional().isURL(),
-  body('priority').optional().isInt({ min: 1, max: 10 }),
-  body('isActive').optional().isBoolean()
+  body('priority').optional().isInt({ min: 1, max: 5 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -119,22 +158,31 @@ router.put('/:id', [
       });
     }
 
-    const { id } = req.params;
-    const userId = req.user.userId;
-    const updates = req.body;
+    const providerIndex = demoProviders.findIndex(p => p.id === req.params.id);
+    
+    if (providerIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'AI provider not found'
+      });
+    }
 
-    const provider = await aiService.updateProvider(userId, id, updates);
+    const updates = req.body;
+    demoProviders[providerIndex] = {
+      ...demoProviders[providerIndex],
+      ...updates
+    };
 
     res.json({
       success: true,
-      message: 'Provider updated successfully',
-      data: { provider }
+      message: 'AI provider updated successfully',
+      data: { provider: demoProviders[providerIndex] }
     });
   } catch (error) {
     console.error('Update provider error:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to update provider'
+      error: 'Failed to update AI provider'
     });
   }
 });
@@ -142,20 +190,26 @@ router.put('/:id', [
 // Delete AI provider
 router.delete('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.userId;
+    const providerIndex = demoProviders.findIndex(p => p.id === req.params.id);
+    
+    if (providerIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'AI provider not found'
+      });
+    }
 
-    await aiService.deleteProvider(userId, id);
+    demoProviders.splice(providerIndex, 1);
 
     res.json({
       success: true,
-      message: 'Provider deleted successfully'
+      message: 'AI provider deleted successfully'
     });
   } catch (error) {
     console.error('Delete provider error:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to delete provider'
+      error: 'Failed to delete AI provider'
     });
   }
 });
@@ -163,202 +217,31 @@ router.delete('/:id', async (req, res) => {
 // Test AI provider
 router.post('/:id/test', async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.userId;
+    const provider = demoProviders.find(p => p.id === req.params.id);
+    
+    if (!provider) {
+      return res.status(404).json({
+        success: false,
+        error: 'AI provider not found'
+      });
+    }
 
-    const result = await aiService.testProvider(userId, id);
+    // Simulate test
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     res.json({
       success: true,
-      data: result
+      data: {
+        success: true,
+        responseTime: Math.random() * 1000 + 500,
+        message: 'Provider test successful'
+      }
     });
   } catch (error) {
     console.error('Test provider error:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to test provider'
-    });
-  }
-});
-
-// Get available models for a provider
-router.get('/:id/models', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.userId;
-
-    const provider = await AIProvider.findOne({ _id: id, user: userId });
-    if (!provider) {
-      return res.status(404).json({
-        success: false,
-        error: 'Provider not found'
-      });
-    }
-
-    const models = provider.getAvailableModels();
-
-    res.json({
-      success: true,
-      data: { models }
-    });
-  } catch (error) {
-    console.error('Get models error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get models'
-    });
-  }
-});
-
-// Update provider settings
-router.put('/:id/settings', [
-  body('temperature').optional().isFloat({ min: 0, max: 2 }),
-  body('maxTokens').optional().isInt({ min: 1, max: 100000 }),
-  body('topP').optional().isFloat({ min: 0, max: 1 }),
-  body('frequencyPenalty').optional().isFloat({ min: -2, max: 2 }),
-  body('presencePenalty').optional().isFloat({ min: -2, max: 2 })
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
-    const { id } = req.params;
-    const userId = req.user.userId;
-    const settings = req.body;
-
-    const provider = await AIProvider.findOne({ _id: id, user: userId });
-    if (!provider) {
-      return res.status(404).json({
-        success: false,
-        error: 'Provider not found'
-      });
-    }
-
-    // Update settings
-    Object.keys(settings).forEach(key => {
-      if (settings[key] !== undefined) {
-        provider.settings[key] = settings[key];
-      }
-    });
-
-    await provider.save();
-
-    res.json({
-      success: true,
-      message: 'Settings updated successfully',
-      data: { settings: provider.settings }
-    });
-  } catch (error) {
-    console.error('Update settings error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update settings'
-    });
-  }
-});
-
-// Get provider usage statistics
-router.get('/:id/usage', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.userId;
-    const { period = '30d' } = req.query;
-
-    const provider = await AIProvider.findOne({ _id: id, user: userId });
-    if (!provider) {
-      return res.status(404).json({
-        success: false,
-        error: 'Provider not found'
-      });
-    }
-
-    // Calculate period-based usage
-    const now = new Date();
-    let startDate;
-    
-    switch (period) {
-      case '7d':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '90d':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(0);
-    }
-
-    const usage = {
-      totalRequests: provider.usage.totalRequests,
-      totalTokens: provider.usage.totalTokens,
-      totalCost: provider.usage.totalCost,
-      lastUsed: provider.usage.lastUsed,
-      period: period,
-      startDate: startDate,
-      endDate: now
-    };
-
-    res.json({
-      success: true,
-      data: { usage }
-    });
-  } catch (error) {
-    console.error('Get usage error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get usage statistics'
-    });
-  }
-});
-
-// Get all available models across providers
-router.get('/models/all', async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const providers = await aiService.getAvailableProviders(userId);
-    
-    const allModels = providers.reduce((acc, provider) => {
-      provider.models.forEach(model => {
-        acc.push({
-          ...model,
-          provider: provider.name,
-          providerId: provider.id
-        });
-      });
-      return acc;
-    }, []);
-
-    // Group by category
-    const modelsByCategory = allModels.reduce((acc, model) => {
-      const category = model.category || 'other';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(model);
-      return acc;
-    }, {});
-
-    res.json({
-      success: true,
-      data: {
-        models: allModels,
-        modelsByCategory,
-        totalModels: allModels.length,
-        totalProviders: providers.length
-      }
-    });
-  } catch (error) {
-    console.error('Get all models error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get all models'
+      error: 'Failed to test AI provider'
     });
   }
 });
