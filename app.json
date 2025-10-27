@@ -1,19 +1,75 @@
 {
-    "name": "Code-Server",
-    "description": "Code-Server with code-ready environment & google drive file saving.",
-    "repository": "https://github.com/vital987/code-server.git",
-    "logo": "https://raw.githubusercontent.com/vital987/code-server/master/assets/icon-dark.png",
-    "keywords": ["docker", "code-server", "coder", "cdr", "c", "clojure", "cpp", "csharp", "go", "java", "js", "javascript", "lua", "perl", "perl6","powershell", "python", "r", "raku", "ruby", "shellscript", "scala", "swift", "bash", "ubuntu", "focal", "20.04", "remote", "vscode", "visual-studio", "vscode-server"],
-    "stack": "container",
-    "env": {
-      "AUTH_TYPE" : {
-        "description": "Code-Server login type: {password, none}",
-	      "value" : "password",
-        "required" : true
-      } ,
-      "PASSWORD": {
-        "description": "Code-Server login password (If AUTH_TYPE=password), default: samplepass",
-        "required" : false
-      }
-    } 
-  }
+  "name": "Pythagora AI Platform",
+  "description": "Advanced AI-powered development platform - World's first all-in-one AI dev platform",
+  "repository": "https://github.com/you112ef/pythagora-ai-platform-v2",
+  "logo": "https://raw.githubusercontent.com/you112ef/pythagora-ai-platform-v2/main/assets/icon.svg",
+  "keywords": [
+    "ai",
+    "development",
+    "platform",
+    "code-generation",
+    "debugging",
+    "deployment",
+    "collaboration",
+    "fullstack"
+  ],
+  "website": "https://github.com/you112ef/pythagora-ai-platform-v2",
+  "success_url": "/",
+  "scripts": {
+    "postdeploy": "echo 'Deployment successful!'"
+  },
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production",
+      "required": true
+    },
+    "MONGODB_URI": {
+      "description": "MongoDB connection string (MongoDB Atlas)",
+      "required": true
+    },
+    "JWT_SECRET": {
+      "description": "Secret key for JWT tokens",
+      "generator": "secret",
+      "required": true
+    },
+    "JWT_REFRESH_SECRET": {
+      "description": "Secret key for JWT refresh tokens",
+      "generator": "secret",
+      "required": true
+    },
+    "OPENAI_API_KEY": {
+      "description": "OpenAI API key for AI features",
+      "required": false
+    },
+    "ANTHROPIC_API_KEY": {
+      "description": "Anthropic API key for Claude AI",
+      "required": false
+    },
+    "GITHUB_TOKEN": {
+      "description": "GitHub token for repository operations",
+      "required": false
+    },
+    "REDIS_URL": {
+      "description": "Redis connection URL (optional, has in-memory fallback)",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "addons": [
+    {
+      "plan": "heroku-redis:mini",
+      "as": "REDIS"
+    }
+  ]
+}
