@@ -33,11 +33,20 @@ Or deploy instantly:
 ## 🚀 Features
 
 ### Core AI Capabilities
-- **AI Code Generation**: Generate production-ready code with advanced AI models (GPT-4, Claude)
+- **🤖 OpenRouter Integration**: Access **40+ AI models** from multiple providers with a single API key
+  - OpenAI (GPT-4, GPT-3.5 Turbo)
+  - Anthropic (Claude 3 Opus, Sonnet, Haiku)
+  - Google (Gemini Pro, Gemini Vision)
+  - Meta (Llama 2 70B, 13B)
+  - Mistral AI (Mistral 7B, Mixtral 8x7B)
+  - Cohere, DeepSeek, BigCode, and more!
+- **AI Code Generation**: Generate production-ready code with advanced AI models
 - **Intelligent Code Review**: Automated code quality assessment and improvement suggestions
 - **Smart Debugging**: AI-powered error detection and resolution
 - **Test Generation**: Automated test case creation with comprehensive coverage
 - **Documentation Generation**: Auto-generate technical documentation
+- **Model Browser**: Explore and compare all available AI models
+- **API Key Management**: Secure storage and management of multiple AI provider keys
 
 ### Development Tools
 - **Multi-Language Support**: JavaScript, TypeScript, Python, Java, C#, Go, Rust, and more
@@ -84,8 +93,13 @@ Or deploy instantly:
 - **Responsive Design** for all devices
 
 ### AI Integration
+- **OpenRouter** - Unified API for 40+ AI models
 - **OpenAI GPT-4** for code generation and analysis
 - **Anthropic Claude** for advanced reasoning
+- **Google Gemini** for multimodal capabilities
+- **Meta Llama 2** for open-source options
+- **Mistral AI** for efficient performance
+- **Specialized Models** for code, vision, and audio tasks
 - **Custom AI workflows** for specialized tasks
 
 ## 📦 Installation
@@ -168,13 +182,31 @@ SMTP_PASS=your-app-password
 
 ### AI Service Setup
 
+#### Option 1: OpenRouter (Recommended - Access All Models)
+
+1. **Get OpenRouter API Key**
+   - Sign up at [OpenRouter.ai](https://openrouter.ai/)
+   - Create API key in dashboard
+   - Access 40+ models with single key
+
+2. **Add in Platform**
+   - Navigate to `/ai-providers.html`
+   - Click "Add AI Provider"
+   - Select "OpenRouter"
+   - Enter your API key
+   - Start using all models!
+
+#### Option 2: Direct Provider Setup
+
 1. **OpenAI Setup**
    - Get your API key from [OpenAI Platform](https://platform.openai.com/)
-   - Add it to your `.env` file as `OPENAI_API_KEY`
+   - Add via AI Providers page or `.env` file
 
 2. **Anthropic Setup**
    - Get your API key from [Anthropic Console](https://console.anthropic.com/)
-   - Add it to your `.env` file as `ANTHROPIC_API_KEY`
+   - Add via AI Providers page or `.env` file
+
+**📚 Full Guide:** See [OPENROUTER_INTEGRATION.md](OPENROUTER_INTEGRATION.md)
 
 ## 📖 Usage
 
