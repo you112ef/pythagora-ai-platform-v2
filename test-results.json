@@ -1,0 +1,215 @@
+{
+  "timestamp": "2025-10-27T08:33:06.475Z",
+  "baseUrl": "http://localhost:3002",
+  "totalTests": 17,
+  "passed": 4,
+  "failed": 13,
+  "skipped": 0,
+  "tests": [
+    {
+      "category": "Server",
+      "name": "Health Check",
+      "success": "2.0.0",
+      "duration": 31,
+      "details": "Status: OK, Version: 2.0.0",
+      "timestamp": "2025-10-27T08:33:06.507Z"
+    },
+    {
+      "category": "Server",
+      "name": "Static File Serving",
+      "success": true,
+      "duration": 11,
+      "details": "Homepage loaded successfully",
+      "timestamp": "2025-10-27T08:33:06.519Z"
+    },
+    {
+      "category": "Server",
+      "name": "404 Error Handling",
+      "success": true,
+      "duration": 4,
+      "details": "Status: 404",
+      "timestamp": "2025-10-27T08:33:06.523Z"
+    },
+    {
+      "category": "Security",
+      "name": "CORS Headers Present",
+      "success": true,
+      "duration": 3,
+      "details": "CORS header: http://localhost:3000",
+      "timestamp": "2025-10-27T08:33:06.526Z"
+    },
+    {
+      "category": "Auth",
+      "name": "User Registration",
+      "success": false,
+      "duration": 11,
+      "details": "Request failed with status code 400",
+      "timestamp": "2025-10-27T08:33:06.537Z"
+    },
+    {
+      "category": "Auth",
+      "name": "User Login",
+      "success": false,
+      "duration": 3814,
+      "details": "socket hang up",
+      "timestamp": "2025-10-27T08:33:10.351Z"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Get Providers List",
+      "success": false,
+      "duration": 3,
+      "details": "Error",
+      "timestamp": "2025-10-27T08:33:10.354Z"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Get All Models",
+      "success": false,
+      "duration": 2,
+      "details": "Error",
+      "timestamp": "2025-10-27T08:33:10.357Z"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Add Provider",
+      "success": false,
+      "duration": 2,
+      "details": "Error",
+      "timestamp": "2025-10-27T08:33:10.359Z"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Update Provider",
+      "success": false,
+      "duration": 0,
+      "details": "No provider ID available",
+      "timestamp": "2025-10-27T08:33:10.359Z"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Test Provider Connection",
+      "success": false,
+      "duration": 0,
+      "details": "No provider ID available",
+      "timestamp": "2025-10-27T08:33:10.359Z"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Delete Provider",
+      "success": false,
+      "duration": 0,
+      "details": "No provider ID available",
+      "timestamp": "2025-10-27T08:33:10.359Z"
+    },
+    {
+      "category": "Projects",
+      "name": "Get Projects List",
+      "success": false,
+      "duration": 1,
+      "details": "Error",
+      "timestamp": "2025-10-27T08:33:10.361Z"
+    },
+    {
+      "category": "Projects",
+      "name": "Create Project",
+      "success": false,
+      "duration": 2,
+      "details": "Error",
+      "timestamp": "2025-10-27T08:33:10.363Z"
+    },
+    {
+      "category": "Security",
+      "name": "Invalid Token Rejection",
+      "success": false,
+      "duration": 2,
+      "details": "Status: undefined, Token properly rejected",
+      "timestamp": "2025-10-27T08:33:10.365Z"
+    },
+    {
+      "category": "Security",
+      "name": "Missing Token Rejection",
+      "success": false,
+      "duration": 1,
+      "details": "Status: undefined, Properly rejected",
+      "timestamp": "2025-10-27T08:33:10.366Z"
+    },
+    {
+      "category": "Performance",
+      "name": "Rate Limiting - Handle Multiple Requests",
+      "success": false,
+      "duration": 6,
+      "details": "Error",
+      "timestamp": "2025-10-27T08:33:10.372Z"
+    }
+  ],
+  "performance": {},
+  "errors": [
+    {
+      "category": "Auth",
+      "name": "User Registration",
+      "details": "Request failed with status code 400"
+    },
+    {
+      "category": "Auth",
+      "name": "User Login",
+      "details": "socket hang up"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Get Providers List",
+      "details": "Error"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Get All Models",
+      "details": "Error"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Add Provider",
+      "details": "Error"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Update Provider",
+      "details": "No provider ID available"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Test Provider Connection",
+      "details": "No provider ID available"
+    },
+    {
+      "category": "AI Providers",
+      "name": "Delete Provider",
+      "details": "No provider ID available"
+    },
+    {
+      "category": "Projects",
+      "name": "Get Projects List",
+      "details": "Error"
+    },
+    {
+      "category": "Projects",
+      "name": "Create Project",
+      "details": "Error"
+    },
+    {
+      "category": "Security",
+      "name": "Invalid Token Rejection",
+      "details": "Status: undefined, Token properly rejected"
+    },
+    {
+      "category": "Security",
+      "name": "Missing Token Rejection",
+      "details": "Status: undefined, Properly rejected"
+    },
+    {
+      "category": "Performance",
+      "name": "Rate Limiting - Handle Multiple Requests",
+      "details": "Error"
+    }
+  ],
+  "totalDuration": 3920
+}
