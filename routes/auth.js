@@ -25,26 +25,47 @@ router.post('/register', [
 
     const { email, password, firstName, lastName } = req.body;
 
-    // Demo mode - create user without database
-    const user = {
-      _id: 'demo_' + Date.now(),
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'User with this email already exists'
+      });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create new user in database
+    const user = await User.create({
       email,
+      password: hashedPassword,
       firstName,
       lastName,
       fullName: `${firstName} ${lastName}`,
       subscription: {
-        plan: 'Pro',
-        tokens: 10000000
-      }
-    };
+        plan: 'Free',
+        tokens: 100000,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      },
+      role: 'user',
+      isActive: true
+    });
 
     // Generate tokens
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
 
     // Store refresh token in Redis
-    const redisClient = getRedisClient();
-    await redisClient.setEx(`refresh_${user._id}`, 7 * 24 * 60 * 60, refreshToken);
+    try {
+      const redisClient = getRedisClient();
+      await redisClient.setEx(`refresh_${user._id}`, 7 * 24 * 60 * 60, refreshToken);
+    } catch (redisError) {
+      console.warn('Redis not available, refresh token not cached:', redisError.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -56,7 +77,8 @@ router.post('/register', [
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.fullName,
-          subscription: user.subscription
+          subscription: user.subscription,
+          role: user.role
         },
         token,
         refreshToken
@@ -67,7 +89,8 @@ router.post('/register', [
     console.error('Registration error:', error);
     res.status(500).json({
       success: false,
-      error: 'Registration failed'
+      error: 'Registration failed',
+      message: error.message
     });
   }
 });
@@ -88,68 +111,31 @@ router.post('/login', [
 
     const { email, password } = req.body;
 
-    // Demo mode - accept demo credentials
-    if (email === 'demo@pythagora.ai' && password === 'demo123') {
-      const user = {
-        _id: 'demo_user_123',
-        email: 'demo@pythagora.ai',
-        firstName: 'Demo',
-        lastName: 'User',
-        fullName: 'Demo User',
-        subscription: {
-          plan: 'Pro',
-          tokens: 10000000
-        }
-      };
-
-      const token = generateToken(user);
-      const refreshToken = generateRefreshToken(user);
-
-      // Store refresh token in Redis
-      const redisClient = getRedisClient();
-      await redisClient.setEx(`refresh_${user._id}`, 7 * 24 * 60 * 60, refreshToken);
-
-      return res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          user: {
-            id: user._id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            fullName: user.fullName,
-            subscription: user.subscription
-          },
-          token,
-          refreshToken
-        }
-      });
-    }
-
-    // For other users, try database lookup
+    // Find user by email
     const user = await User.findOne({ email }).select('+password');
+    
     if (!user) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Invalid email or password'
       });
     }
 
     // Check if user is active
     if (!user.isActive) {
-      return res.status(401).json({
+      return res.status(403).json({
         success: false,
-        error: 'Account is deactivated'
+        error: 'Account is disabled. Please contact support.'
       });
     }
 
     // Verify password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: 'Invalid email or password'
       });
     }
 
@@ -157,19 +143,42 @@ router.post('/login', [
     user.lastLogin = new Date();
     await user.save();
 
+    // Create user object for token (without password)
+    const tokenUser = {
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: user.fullName,
+      role: user.role,
+      subscription: user.subscription
+    };
+
     // Generate tokens
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const token = generateToken(tokenUser);
+    const refreshToken = generateRefreshToken(tokenUser);
 
     // Store refresh token in Redis
-    const redisClient = getRedisClient();
-    await redisClient.setEx(`refresh_${user._id}`, 7 * 24 * 60 * 60, refreshToken);
+    try {
+      const redisClient = getRedisClient();
+      await redisClient.setEx(`refresh_${user._id}`, 7 * 24 * 60 * 60, refreshToken);
+    } catch (redisError) {
+      console.warn('Redis not available, refresh token not cached:', redisError.message);
+    }
 
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        user: user.toJSON(),
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: user.fullName,
+          subscription: user.subscription,
+          role: user.role
+        },
         token,
         refreshToken
       }
@@ -179,7 +188,8 @@ router.post('/login', [
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      error: 'Login failed'
+      error: 'Login failed',
+      message: error.message
     });
   }
 });
@@ -200,14 +210,18 @@ router.post('/refresh', async (req, res) => {
     const decoded = verifyRefreshToken(refreshToken);
     
     // Check if refresh token exists in Redis
-    const redisClient = getRedisClient();
-    const storedToken = await redisClient.get(`refresh_${decoded.userId}`);
-    
-    if (!storedToken || storedToken !== refreshToken) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid refresh token'
-      });
+    try {
+      const redisClient = getRedisClient();
+      const storedToken = await redisClient.get(`refresh_${decoded.userId}`);
+      
+      if (!storedToken || storedToken !== refreshToken) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid refresh token'
+        });
+      }
+    } catch (redisError) {
+      console.warn('Redis not available for token verification:', redisError.message);
     }
 
     // Get user
@@ -224,7 +238,12 @@ router.post('/refresh', async (req, res) => {
     const newRefreshToken = generateRefreshToken(user);
 
     // Update refresh token in Redis
-    await redisClient.setEx(`refresh_${user._id}`, 7 * 24 * 60 * 60, newRefreshToken);
+    try {
+      const redisClient = getRedisClient();
+      await redisClient.setEx(`refresh_${user._id}`, 7 * 24 * 60 * 60, newRefreshToken);
+    } catch (redisError) {
+      console.warn('Redis not available, refresh token not cached:', redisError.message);
+    }
 
     res.json({
       success: true,
@@ -250,9 +269,13 @@ router.post('/logout', async (req, res) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (token) {
-      // Add token to blacklist
-      const redisClient = getRedisClient();
-      await redisClient.setEx(`blacklist_${token}`, 24 * 60 * 60, 'true');
+      // Add token to blacklist in Redis
+      try {
+        const redisClient = getRedisClient();
+        await redisClient.setEx(`blacklist_${token}`, 24 * 60 * 60, 'true');
+      } catch (redisError) {
+        console.warn('Redis not available for blacklisting:', redisError.message);
+      }
     }
 
     res.json({
@@ -296,7 +319,16 @@ router.get('/me', async (req, res) => {
     res.json({
       success: true,
       data: {
-        user: user.toJSON()
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: user.fullName,
+          subscription: user.subscription,
+          role: user.role,
+          preferences: user.preferences
+        }
       }
     });
 
@@ -340,8 +372,14 @@ router.put('/profile', [
 
     const { firstName, lastName, preferences } = req.body;
 
-    if (firstName) user.firstName = firstName;
-    if (lastName) user.lastName = lastName;
+    if (firstName) {
+      user.firstName = firstName;
+      user.fullName = `${firstName} ${user.lastName}`;
+    }
+    if (lastName) {
+      user.lastName = lastName;
+      user.fullName = `${user.firstName} ${lastName}`;
+    }
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
     }
@@ -352,7 +390,16 @@ router.put('/profile', [
       success: true,
       message: 'Profile updated successfully',
       data: {
-        user: user.toJSON()
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: user.fullName,
+          subscription: user.subscription,
+          role: user.role,
+          preferences: user.preferences
+        }
       }
     });
 
@@ -361,44 +408,6 @@ router.put('/profile', [
     res.status(500).json({
       success: false,
       error: 'Profile update failed'
-    });
-  }
-});
-
-// Get current user
-router.get('/me', async (req, res) => {
-  try {
-    // In demo mode, return demo user info
-    const user = {
-      _id: 'demo_user_123',
-      email: 'demo@pythagora.ai',
-      firstName: 'Demo',
-      lastName: 'User',
-      fullName: 'Demo User',
-      subscription: {
-        plan: 'Pro',
-        tokens: 10000000
-      }
-    };
-
-    res.json({
-      success: true,
-      data: {
-        user: {
-          id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: user.fullName,
-          subscription: user.subscription
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get user information'
     });
   }
 });

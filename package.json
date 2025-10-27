@@ -13,7 +13,8 @@
     "deploy": "npm run build && npm start",
     "docker:build": "docker build -t pythagora-ai-platform .",
     "docker:run": "docker run -p 3000:3000 pythagora-ai-platform",
-    "setup": "npm install && cp .env.example .env"
+    "setup": "npm install && cp .env.example .env",
+    "seed": "node scripts/seed-database.js"
   },
   "keywords": [
     "ai",

@@ -1,120 +1,66 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const Project = require('../models/Project');
 
 const router = express.Router();
-
-// Demo projects data
-const demoProjects = [
-  {
-    _id: 'proj_1',
-    name: 'E-commerce Platform',
-    description: 'A full-stack e-commerce platform with React frontend and Node.js backend',
-    type: 'web-app',
-    framework: 'react',
-    language: 'javascript',
-    status: 'active',
-    owner: {
-      _id: 'demo_user_123',
-      firstName: 'Demo',
-      lastName: 'User',
-      email: 'demo@pythagora.ai'
-    },
-    collaborators: [],
-    totalCollaborators: 0,
-    deployment: {
-      status: 'deployed',
-      url: 'https://demo-ecommerce.pythagora.ai'
-    },
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-  },
-  {
-    _id: 'proj_2',
-    name: 'AI Chatbot',
-    description: 'Intelligent chatbot using OpenAI GPT-4 for customer support',
-    type: 'ai-model',
-    framework: 'express',
-    language: 'python',
-    status: 'active',
-    owner: {
-      _id: 'demo_user_123',
-      firstName: 'Demo',
-      lastName: 'User',
-      email: 'demo@pythagora.ai'
-    },
-    collaborators: [],
-    totalCollaborators: 0,
-    deployment: {
-      status: 'testing',
-      url: null
-    },
-    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
-  },
-  {
-    _id: 'proj_3',
-    name: 'Mobile Banking App',
-    description: 'Cross-platform mobile banking application with React Native',
-    type: 'mobile-app',
-    framework: 'react-native',
-    language: 'javascript',
-    status: 'development',
-    owner: {
-      _id: 'demo_user_123',
-      firstName: 'Demo',
-      lastName: 'User',
-      email: 'demo@pythagora.ai'
-    },
-    collaborators: [],
-    totalCollaborators: 0,
-    deployment: {
-      status: 'not-deployed',
-      url: null
-    },
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-  }
-];
 
 // Get all projects for user
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10, status, type, search } = req.query;
+    const userId = req.user._id;
 
-    let filteredProjects = [...demoProjects];
+    // Build query
+    let query = {
+      $or: [
+        { owner: userId },
+        { 'collaborators.user': userId }
+      ]
+    };
 
     // Apply filters
     if (status) {
-      filteredProjects = filteredProjects.filter(p => p.status === status);
+      query.status = status;
     }
     if (type) {
-      filteredProjects = filteredProjects.filter(p => p.type === type);
+      query.type = type;
     }
     if (search) {
-      const searchLower = search.toLowerCase();
-      filteredProjects = filteredProjects.filter(p => 
-        p.name.toLowerCase().includes(searchLower) ||
-        p.description.toLowerCase().includes(searchLower)
-      );
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } }
+        ]
+      });
     }
 
-    // Pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + parseInt(limit);
-    const paginatedProjects = filteredProjects.slice(startIndex, endIndex);
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get projects with pagination
+    const [projects, total] = await Promise.all([
+      Project.find(query)
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('owner', 'firstName lastName email')
+        .populate('collaborators.user', 'firstName lastName email'),
+      Project.countDocuments(query)
+    ]);
 
     res.json({
       success: true,
       data: {
-        projects: paginatedProjects,
+        projects,
         pagination: {
           currentPage: parseInt(page),
-          totalPages: Math.ceil(filteredProjects.length / limit),
-          totalItems: filteredProjects.length,
-          itemsPerPage: parseInt(limit)
+          totalPages: Math.ceil(total / parseInt(limit)),
+          totalProjects: total,
+          projectsPerPage: parseInt(limit)
         }
       }
     });
+
   } catch (error) {
     console.error('Get projects error:', error);
     res.status(500).json({
@@ -124,11 +70,14 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get single project
+// Get single project by ID
 router.get('/:id', async (req, res) => {
   try {
-    const project = demoProjects.find(p => p._id === req.params.id);
-    
+    const userId = req.user._id;
+    const project = await Project.findById(req.params.id)
+      .populate('owner', 'firstName lastName email')
+      .populate('collaborators.user', 'firstName lastName email');
+
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -136,10 +85,22 @@ router.get('/:id', async (req, res) => {
       });
     }
 
+    // Check if user has access to this project
+    const hasAccess = project.owner._id.toString() === userId.toString() ||
+                     project.collaborators.some(c => c.user._id.toString() === userId.toString());
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have access to this project'
+      });
+    }
+
     res.json({
       success: true,
       data: { project }
     });
+
   } catch (error) {
     console.error('Get project error:', error);
     res.status(500).json({
@@ -153,7 +114,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', [
   body('name').trim().notEmpty().withMessage('Project name is required'),
   body('description').optional().trim(),
-  body('type').isIn(['web-app', 'mobile-app', 'api', 'desktop-app', 'ai-model']).withMessage('Invalid project type'),
+  body('type').isIn(['web-app', 'mobile-app', 'api', 'ai-model', 'automation', 'other']),
   body('framework').optional().trim(),
   body('language').optional().trim()
 ], async (req, res) => {
@@ -166,39 +127,35 @@ router.post('/', [
       });
     }
 
-    const { name, description, type, framework, language } = req.body;
+    const { name, description, type, framework, language, techStack } = req.body;
+    const userId = req.user._id;
 
-    const newProject = {
-      _id: 'proj_' + Date.now(),
+    const project = await Project.create({
       name,
-      description: description || '',
+      description,
       type,
-      framework: framework || 'react',
-      language: language || 'javascript',
+      framework,
+      language,
+      techStack: techStack || [],
+      owner: userId,
       status: 'development',
-      owner: {
-        _id: 'demo_user_123',
-        firstName: 'Demo',
-        lastName: 'User',
-        email: 'demo@pythagora.ai'
-      },
       collaborators: [],
-      totalCollaborators: 0,
+      files: [],
       deployment: {
         status: 'not-deployed',
         url: null
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      }
+    });
 
-    demoProjects.unshift(newProject);
+    const populatedProject = await Project.findById(project._id)
+      .populate('owner', 'firstName lastName email');
 
     res.status(201).json({
       success: true,
       message: 'Project created successfully',
-      data: { project: newProject }
+      data: { project: populatedProject }
     });
+
   } catch (error) {
     console.error('Create project error:', error);
     res.status(500).json({
@@ -213,7 +170,7 @@ router.put('/:id', [
   body('name').optional().trim().notEmpty(),
   body('description').optional().trim(),
   body('status').optional().isIn(['development', 'testing', 'active', 'archived']),
-  body('type').optional().isIn(['web-app', 'mobile-app', 'api', 'desktop-app', 'ai-model'])
+  body('type').optional().isIn(['web-app', 'mobile-app', 'api', 'ai-model', 'automation', 'other'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -224,27 +181,48 @@ router.put('/:id', [
       });
     }
 
-    const projectIndex = demoProjects.findIndex(p => p._id === req.params.id);
-    
-    if (projectIndex === -1) {
+    const userId = req.user._id;
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
       return res.status(404).json({
         success: false,
         error: 'Project not found'
       });
     }
 
-    const updates = req.body;
-    demoProjects[projectIndex] = {
-      ...demoProjects[projectIndex],
-      ...updates,
-      updatedAt: new Date()
-    };
+    // Check if user is owner
+    if (project.owner.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owner can update the project'
+      });
+    }
+
+    const allowedUpdates = ['name', 'description', 'status', 'type', 'framework', 'language', 'techStack'];
+    const updates = {};
+    
+    allowedUpdates.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    });
+
+    updates.updatedAt = new Date();
+
+    const updatedProject = await Project.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).populate('owner', 'firstName lastName email')
+     .populate('collaborators.user', 'firstName lastName email');
 
     res.json({
       success: true,
       message: 'Project updated successfully',
-      data: { project: demoProjects[projectIndex] }
+      data: { project: updatedProject }
     });
+
   } catch (error) {
     console.error('Update project error:', error);
     res.status(500).json({
@@ -257,26 +235,157 @@ router.put('/:id', [
 // Delete project
 router.delete('/:id', async (req, res) => {
   try {
-    const projectIndex = demoProjects.findIndex(p => p._id === req.params.id);
-    
-    if (projectIndex === -1) {
+    const userId = req.user._id;
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
       return res.status(404).json({
         success: false,
         error: 'Project not found'
       });
     }
 
-    demoProjects.splice(projectIndex, 1);
+    // Check if user is owner
+    if (project.owner.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owner can delete the project'
+      });
+    }
+
+    await Project.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
       message: 'Project deleted successfully'
     });
+
   } catch (error) {
     console.error('Delete project error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to delete project'
+    });
+  }
+});
+
+// Add collaborator to project
+router.post('/:id/collaborators', [
+  body('userId').notEmpty().withMessage('User ID is required'),
+  body('role').optional().isIn(['viewer', 'editor', 'admin'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const ownerId = req.user._id;
+    const { userId, role = 'editor' } = req.body;
+
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found'
+      });
+    }
+
+    // Check if requester is owner
+    if (project.owner.toString() !== ownerId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only project owner can add collaborators'
+      });
+    }
+
+    // Check if user is already a collaborator
+    const existingCollaborator = project.collaborators.find(
+      c => c.user.toString() === userId
+    );
+
+    if (existingCollaborator) {
+      return res.status(400).json({
+        success: false,
+        error: 'User is already a collaborator on this project'
+      });
+    }
+
+    project.collaborators.push({
+      user: userId,
+      role,
+      addedAt: new Date()
+    });
+
+    await project.save();
+
+    const updatedProject = await Project.findById(project._id)
+      .populate('owner', 'firstName lastName email')
+      .populate('collaborators.user', 'firstName lastName email');
+
+    res.json({
+      success: true,
+      message: 'Collaborator added successfully',
+      data: { project: updatedProject }
+    });
+
+  } catch (error) {
+    console.error('Add collaborator error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add collaborator'
+    });
+  }
+});
+
+// Get project statistics
+router.get('/:id/stats', async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found'
+      });
+    }
+
+    // Check if user has access
+    const hasAccess = project.owner.toString() === userId.toString() ||
+                     project.collaborators.some(c => c.user.toString() === userId.toString());
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have access to this project'
+      });
+    }
+
+    const stats = {
+      filesCount: project.files?.length || 0,
+      collaboratorsCount: project.collaborators?.length || 0,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      status: project.status,
+      deployment: project.deployment,
+      aiUsage: project.aiUsage || { totalRequests: 0, totalTokens: 0 }
+    };
+
+    res.json({
+      success: true,
+      data: { stats }
+    });
+
+  } catch (error) {
+    console.error('Get project stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project statistics'
     });
   }
 });
