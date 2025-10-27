@@ -9,7 +9,11 @@
     "build": "webpack --mode production",
     "test": "jest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "deploy": "npm run build && npm start",
+    "docker:build": "docker build -t pythagora-ai-platform .",
+    "docker:run": "docker run -p 3000:3000 pythagora-ai-platform",
+    "setup": "npm install && cp .env.example .env"
   },
   "keywords": [
     "ai",
@@ -49,7 +53,13 @@
     "moment": "^2.29.4",
     "lodash": "^4.17.21",
     "chalk": "^4.1.2",
-    "winston": "^3.10.0"
+    "winston": "^3.10.0",
+    "mysql2": "^3.6.0",
+    "pg": "^8.11.3",
+    "sqlite3": "^5.1.6",
+    "dockerode": "^4.0.2",
+    "tar": "^6.1.13",
+    "crypto": "^1.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

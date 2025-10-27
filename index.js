@@ -1,3 +1,4 @@
+// Vercel entry point for Pythagora AI Platform v2.0
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -30,7 +31,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: process.env.CLIENT_URL || "*",
     methods: ["GET", "POST"]
   }
 });
@@ -49,34 +50,46 @@ app.use(helmet({
   }
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use('/api/', limiter);
-
-// Middleware
-app.use(compression());
+// CORS configuration
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin: process.env.CLIENT_URL || "*",
   credentials: true
 }));
-app.use(morgan('combined'));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.'
+  }
+});
+
+app.use(limiter);
+
+// Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Compression middleware
+app.use(compression());
+
+// Logging middleware
+app.use(morgan('combined'));
+
 // Static files
 app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
 
-// Database and Redis connections
-connectDB();
-initializeRedis();
-
-// WebSocket setup
-setupWebSocket(io);
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    version: '2.0.0'
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -90,20 +103,6 @@ app.use('/api/database', authenticateToken, databaseRoutes);
 app.use('/api/api-management', authenticateToken, apiRoutes);
 app.use('/api/testing', authenticateToken, testingRoutes);
 app.use('/api/monitoring', authenticateToken, monitoringRoutes);
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    version: '2.0.0',
-    services: {
-      database: 'connected',
-      redis: 'connected',
-      websocket: 'active'
-    }
-  });
-});
 
 // Serve the main application
 app.get('/', (req, res) => {
@@ -121,12 +120,27 @@ app.use('*', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+// Initialize services
+const initializeApp = async () => {
+  try {
+    // Connect to database
+    await connectDB();
+    
+    // Initialize Redis
+    await initializeRedis();
+    
+    // Setup WebSocket
+    setupWebSocket(io);
+    
+    console.log('🚀 Pythagora AI Platform v2.0.0 initialized successfully');
+    console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  } catch (error) {
+    console.error('❌ Failed to initialize application:', error);
+  }
+};
 
-server.listen(PORT, () => {
-  console.log(`🚀 Pythagora AI Platform v2.0.0 running on port ${PORT}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Access the platform at: http://localhost:${PORT}`);
-});
+// Initialize app
+initializeApp();
 
-module.exports = { app, server, io };
+// Export for Vercel
+module.exports = app;
