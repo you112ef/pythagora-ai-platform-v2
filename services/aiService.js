@@ -242,6 +242,208 @@ class AIService {
         outputCost: 0.0009,
         capabilities: ['text', 'code', 'reasoning'],
         category: 'open-source'
+      },
+      
+      // FREE AI MODELS (No cost or very low cost)
+      {
+        id: 'openchat/openchat-7b',
+        name: 'OpenChat 3.5 7B',
+        description: 'Free open-source chat model',
+        contextLength: 8192,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'chat', 'reasoning'],
+        category: 'free'
+      },
+      {
+        id: 'mistralai/mistral-7b-instruct:free',
+        name: 'Mistral 7B Instruct (Free)',
+        description: 'Free tier Mistral model',
+        contextLength: 32768,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'code', 'reasoning'],
+        category: 'free'
+      },
+      {
+        id: 'google/gemma-7b-it:free',
+        name: 'Google Gemma 7B (Free)',
+        description: 'Free Google Gemma instruction-tuned model',
+        contextLength: 8192,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'reasoning'],
+        category: 'free'
+      },
+      {
+        id: 'meta-llama/llama-2-70b-chat:free',
+        name: 'Llama 2 70B Chat (Free)',
+        description: 'Free tier Llama 2 70B',
+        contextLength: 4096,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'code', 'reasoning'],
+        category: 'free'
+      },
+      {
+        id: 'gryphe/mythomist-7b:free',
+        name: 'MythoMist 7B (Free)',
+        description: 'Free creative writing model',
+        contextLength: 32768,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'creative-writing', 'storytelling'],
+        category: 'free'
+      },
+      {
+        id: 'nousresearch/nous-capybara-7b:free',
+        name: 'Nous Capybara 7B (Free)',
+        description: 'Free instruction-following model',
+        contextLength: 8192,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'reasoning', 'instructions'],
+        category: 'free'
+      },
+      {
+        id: 'huggingfaceh4/zephyr-7b-beta:free',
+        name: 'Zephyr 7B Beta (Free)',
+        description: 'Free fine-tuned Mistral model',
+        contextLength: 8192,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'chat', 'reasoning'],
+        category: 'free'
+      },
+      {
+        id: 'toppy/toppy-m-7b:free',
+        name: 'Toppy M 7B (Free)',
+        description: 'Free high-performance 7B model',
+        contextLength: 4096,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'reasoning'],
+        category: 'free'
+      },
+      {
+        id: 'undi95/toppy-m-7b:free',
+        name: 'Toppy M 7B v2 (Free)',
+        description: 'Free optimized 7B model',
+        contextLength: 4096,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'chat'],
+        category: 'free'
+      },
+      {
+        id: 'openhermes/openhermes-2.5-mistral-7b',
+        name: 'OpenHermes 2.5 Mistral 7B',
+        description: 'Free instruction-tuned model',
+        contextLength: 8192,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'instructions', 'reasoning'],
+        category: 'free'
+      },
+      {
+        id: 'teknium/openhermes-2-mistral-7b',
+        name: 'OpenHermes 2 Mistral 7B',
+        description: 'Free conversation model',
+        contextLength: 8192,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'chat', 'reasoning'],
+        category: 'free'
+      },
+      {
+        id: 'phind/phind-codellama-34b',
+        name: 'Phind CodeLlama 34B',
+        description: 'Free code generation model',
+        contextLength: 16384,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['code', 'programming', 'debugging'],
+        category: 'free'
+      },
+      {
+        id: 'codellama/codellama-70b-instruct',
+        name: 'CodeLlama 70B Instruct',
+        description: 'Free large code model',
+        contextLength: 4096,
+        inputCost: 0.00072,
+        outputCost: 0.00081,
+        capabilities: ['code', 'programming'],
+        category: 'code'
+      },
+      {
+        id: 'cognitivecomputations/dolphin-mixtral-8x7b',
+        name: 'Dolphin Mixtral 8x7B',
+        description: 'Free uncensored model',
+        contextLength: 32768,
+        inputCost: 0.0005,
+        outputCost: 0.0005,
+        capabilities: ['text', 'reasoning', 'uncensored'],
+        category: 'open-source'
+      },
+      {
+        id: '01-ai/yi-34b-chat',
+        name: 'Yi 34B Chat',
+        description: 'Free bilingual (EN/CN) model',
+        contextLength: 4096,
+        inputCost: 0.00072,
+        outputCost: 0.00072,
+        capabilities: ['text', 'multilingual', 'chat'],
+        category: 'open-source'
+      },
+      {
+        id: 'nousresearch/nous-hermes-2-mixtral-8x7b-dpo',
+        name: 'Nous Hermes 2 Mixtral DPO',
+        description: 'Free high-quality reasoning model',
+        contextLength: 32768,
+        inputCost: 0.0005,
+        outputCost: 0.0005,
+        capabilities: ['text', 'reasoning', 'analysis'],
+        category: 'open-source'
+      },
+      {
+        id: 'rwkv/rwkv-5-world-3b',
+        name: 'RWKV 5 World 3B',
+        description: 'Free efficient RNN-based model',
+        contextLength: 10000,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'multilingual'],
+        category: 'free'
+      },
+      {
+        id: 'alpindale/goliath-120b',
+        name: 'Goliath 120B',
+        description: 'Free very large open model',
+        contextLength: 6144,
+        inputCost: 0.00094,
+        outputCost: 0.00094,
+        capabilities: ['text', 'reasoning', 'analysis'],
+        category: 'open-source'
+      },
+      {
+        id: 'neversleep/noromaid-20b',
+        name: 'Noromaid 20B',
+        description: 'Free creative writing model',
+        contextLength: 8192,
+        inputCost: 0.00225,
+        outputCost: 0.00225,
+        capabilities: ['text', 'creative-writing', 'roleplay'],
+        category: 'open-source'
+      },
+      {
+        id: 'gryphe/mythomax-l2-13b:free',
+        name: 'MythoMax L2 13B (Free)',
+        description: 'Free creative model',
+        contextLength: 8192,
+        inputCost: 0,
+        outputCost: 0,
+        capabilities: ['text', 'creative-writing'],
+        category: 'free'
       }
     ];
 
