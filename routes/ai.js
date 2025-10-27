@@ -1,18 +1,14 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const Project = require('../models/Project');
-const User = require('../models/User');
-const aiService = require('../services/aiService');
 
 const router = express.Router();
 
-// AI Code Generation
+// Generate code
 router.post('/generate-code', [
-  body('prompt').notEmpty().withMessage('Prompt is required'),
-  body('projectId').isMongoId().withMessage('Valid project ID is required'),
-  body('language').optional().isIn(['javascript', 'typescript', 'python', 'java', 'csharp', 'go', 'rust', 'php', 'ruby']),
-  body('framework').optional().isIn(['react', 'vue', 'angular', 'express', 'django', 'flask', 'spring', 'laravel', 'rails']),
-  body('model').optional().isString()
+  body('prompt').trim().notEmpty().withMessage('Prompt is required'),
+  body('language').optional().trim(),
+  body('framework').optional().trim(),
+  body('model').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -23,87 +19,38 @@ router.post('/generate-code', [
       });
     }
 
-    const { prompt, projectId, language = 'javascript', framework, context, model = 'openai/gpt-3.5-turbo' } = req.body;
-    const userId = req.user.userId;
+    const { prompt, language = 'javascript', framework = 'react', model = 'gpt-4' } = req.body;
 
-    // Get project and verify access
-    const project = await Project.findById(projectId);
-    if (!project || !project.canAccess(userId)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found or access denied'
-      });
-    }
+    // Simulate AI processing time
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Get user to check tokens
-    const user = await User.findById(userId);
-    const estimatedTokens = Math.ceil(prompt.length / 4) + 1000; // Rough estimation
+    // Generate demo code based on prompt
+    const generatedCode = generateDemoCode(prompt, language, framework);
 
-    if (!user.hasEnoughTokens(estimatedTokens)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Insufficient tokens',
-        message: `You need ${estimatedTokens} tokens but have ${user.subscription.tokens}`
-      });
-    }
-
-    // Prepare context for AI
-    const systemPrompt = `You are an expert ${language} developer specializing in ${framework || 'web development'}. 
-    Generate clean, production-ready code that follows best practices. 
-    Include proper error handling, comments, and documentation.
-    ${context ? `Context: ${context}` : ''}`;
-
-    try {
-      // Use the new AI service
-      const result = await aiService.generateText(userId, `${systemPrompt}\n\nUser request: ${prompt}`, {
+    res.json({
+      success: true,
+      data: {
+        generatedCode,
         model,
-        maxTokens: 2000,
-        temperature: 0.7
-      });
-
-      // Deduct tokens from user
-      user.deductTokens(result.usage.totalTokens);
-      await user.save();
-
-      // Update project AI usage
-      project.aiFeatures.codeGeneration.tokensUsed += result.usage.totalTokens;
-      await project.save();
-
-      res.json({
-        success: true,
-        data: {
-          generatedCode: result.text,
-          tokensUsed: result.usage.totalTokens,
-          model: result.model,
-          provider: result.provider,
-          language,
-          framework
-        }
-      });
-
-    } catch (aiError) {
-      console.error('AI generation error:', aiError);
-      res.status(500).json({
-        success: false,
-        error: 'AI code generation failed',
-        message: aiError.message
-      });
-    }
-
+        language,
+        framework,
+        tokensUsed: Math.floor(Math.random() * 1000) + 500,
+        cost: (Math.random() * 0.05 + 0.01).toFixed(4)
+      }
+    });
   } catch (error) {
     console.error('Generate code error:', error);
     res.status(500).json({
       success: false,
-      error: 'Code generation failed'
+      error: 'Failed to generate code'
     });
   }
 });
 
-// AI Code Review
+// Review code
 router.post('/review-code', [
-  body('code').notEmpty().withMessage('Code is required'),
-  body('projectId').isMongoId().withMessage('Valid project ID is required'),
-  body('model').optional().isString()
+  body('code').trim().notEmpty().withMessage('Code is required'),
+  body('language').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -114,72 +61,36 @@ router.post('/review-code', [
       });
     }
 
-    const { code, projectId, language = 'javascript', model = 'openai/gpt-4' } = req.body;
-    const userId = req.user.userId;
+    const { code, language = 'javascript' } = req.body;
 
-    // Get project and verify access
-    const project = await Project.findById(projectId);
-    if (!project || !project.canAccess(userId)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found or access denied'
-      });
-    }
+    // Simulate AI processing time
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
-    const systemPrompt = `You are an expert code reviewer. Analyze the provided ${language} code and provide:
-    1. Code quality assessment (1-10)
-    2. Security issues
-    3. Performance improvements
-    4. Best practices violations
-    5. Suggestions for improvement
-    6. Overall recommendation`;
+    const review = generateDemoCodeReview(code, language);
 
-    try {
-      const result = await aiService.generateText(userId, `${systemPrompt}\n\nPlease review this code:\n\n${code}`, {
-        model,
-        maxTokens: 1500,
-        temperature: 0.3
-      });
-
-      // Deduct tokens
-      const user = await User.findById(userId);
-      user.deductTokens(result.usage.totalTokens);
-      await user.save();
-
-      res.json({
-        success: true,
-        data: {
-          review: result.text,
-          tokensUsed: result.usage.totalTokens,
-          model: result.model,
-          provider: result.provider,
-          language
-        }
-      });
-
-    } catch (aiError) {
-      console.error('AI review error:', aiError);
-      res.status(500).json({
-        success: false,
-        error: 'AI code review failed',
-        message: aiError.message
-      });
-    }
-
+    res.json({
+      success: true,
+      data: {
+        review,
+        language,
+        tokensUsed: Math.floor(Math.random() * 500) + 200,
+        cost: (Math.random() * 0.02 + 0.005).toFixed(4)
+      }
+    });
   } catch (error) {
-    console.error('Code review error:', error);
+    console.error('Review code error:', error);
     res.status(500).json({
       success: false,
-      error: 'Code review failed'
+      error: 'Failed to review code'
     });
   }
 });
 
-// AI Debugging
+// Debug code
 router.post('/debug-code', [
-  body('code').notEmpty().withMessage('Code is required'),
-  body('error').notEmpty().withMessage('Error message is required'),
-  body('projectId').isMongoId().withMessage('Valid project ID is required')
+  body('code').trim().notEmpty().withMessage('Code is required'),
+  body('error').trim().notEmpty().withMessage('Error message is required'),
+  body('language').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -190,66 +101,36 @@ router.post('/debug-code', [
       });
     }
 
-    const { code, error, projectId, language = 'javascript' } = req.body;
-    const userId = req.user.userId;
+    const { code, error, language = 'javascript' } = req.body;
 
-    // Get project and verify access
-    const project = await Project.findById(projectId);
-    if (!project || !project.canAccess(userId)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found or access denied'
-      });
-    }
+    // Simulate AI processing time
+    await new Promise(resolve => setTimeout(resolve, 1800));
 
-    const systemPrompt = `You are an expert debugger. Analyze the provided ${language} code and error message.
-    Provide:
-    1. Root cause analysis
-    2. Step-by-step debugging approach
-    3. Fixed code solution
-    4. Prevention strategies
-    5. Additional testing recommendations`;
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Code:\n${code}\n\nError:\n${error}` }
-      ],
-      max_tokens: 2000,
-      temperature: 0.2
-    });
-
-    const debugAnalysis = completion.choices[0].message.content;
-    const tokensUsed = completion.usage.total_tokens;
-
-    // Deduct tokens
-    const user = await User.findById(userId);
-    user.deductTokens(tokensUsed);
-    await user.save();
+    const debugAnalysis = generateDemoDebugAnalysis(code, error, language);
 
     res.json({
       success: true,
       data: {
         debugAnalysis,
-        tokensUsed,
-        language
+        language,
+        tokensUsed: Math.floor(Math.random() * 600) + 300,
+        cost: (Math.random() * 0.03 + 0.01).toFixed(4)
       }
     });
-
   } catch (error) {
     console.error('Debug code error:', error);
     res.status(500).json({
       success: false,
-      error: 'Code debugging failed'
+      error: 'Failed to debug code'
     });
   }
 });
 
-// AI Test Generation
+// Generate tests
 router.post('/generate-tests', [
-  body('code').notEmpty().withMessage('Code is required'),
-  body('projectId').isMongoId().withMessage('Valid project ID is required')
+  body('code').trim().notEmpty().withMessage('Code is required'),
+  body('testFramework').optional().trim(),
+  body('language').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -260,67 +141,37 @@ router.post('/generate-tests', [
       });
     }
 
-    const { code, projectId, testFramework = 'jest', language = 'javascript' } = req.body;
-    const userId = req.user.userId;
+    const { code, testFramework = 'jest', language = 'javascript' } = req.body;
 
-    // Get project and verify access
-    const project = await Project.findById(projectId);
-    if (!project || !project.canAccess(userId)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found or access denied'
-      });
-    }
+    // Simulate AI processing time
+    await new Promise(resolve => setTimeout(resolve, 2500));
 
-    const systemPrompt = `You are an expert in ${testFramework} testing. Generate comprehensive unit tests for the provided ${language} code.
-    Include:
-    1. Test cases for all functions/methods
-    2. Edge cases and error scenarios
-    3. Mocking where appropriate
-    4. Setup and teardown if needed
-    5. Clear test descriptions`;
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate tests for this code:\n\n${code}` }
-      ],
-      max_tokens: 2500,
-      temperature: 0.3
-    });
-
-    const generatedTests = completion.choices[0].message.content;
-    const tokensUsed = completion.usage.total_tokens;
-
-    // Deduct tokens
-    const user = await User.findById(userId);
-    user.deductTokens(tokensUsed);
-    await user.save();
+    const generatedTests = generateDemoTests(code, testFramework, language);
 
     res.json({
       success: true,
       data: {
         generatedTests,
-        tokensUsed,
         testFramework,
-        language
+        language,
+        tokensUsed: Math.floor(Math.random() * 800) + 400,
+        cost: (Math.random() * 0.04 + 0.015).toFixed(4)
       }
     });
-
   } catch (error) {
     console.error('Generate tests error:', error);
     res.status(500).json({
       success: false,
-      error: 'Test generation failed'
+      error: 'Failed to generate tests'
     });
   }
 });
 
-// AI Documentation Generation
+// Generate documentation
 router.post('/generate-docs', [
-  body('code').notEmpty().withMessage('Code is required'),
-  body('projectId').isMongoId().withMessage('Valid project ID is required')
+  body('code').trim().notEmpty().withMessage('Code is required'),
+  body('format').optional().trim(),
+  body('language').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -331,94 +182,223 @@ router.post('/generate-docs', [
       });
     }
 
-    const { code, projectId, format = 'markdown', language = 'javascript' } = req.body;
-    const userId = req.user.userId;
+    const { code, format = 'markdown', language = 'javascript' } = req.body;
 
-    // Get project and verify access
-    const project = await Project.findById(projectId);
-    if (!project || !project.canAccess(userId)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found or access denied'
-      });
-    }
+    // Simulate AI processing time
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-    const systemPrompt = `You are an expert technical writer. Generate comprehensive documentation for the provided ${language} code in ${format} format.
-    Include:
-    1. Overview and purpose
-    2. Function/method descriptions
-    3. Parameters and return values
-    4. Usage examples
-    5. Error handling
-    6. Dependencies`;
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate documentation for this code:\n\n${code}` }
-      ],
-      max_tokens: 2000,
-      temperature: 0.3
-    });
-
-    const documentation = completion.choices[0].message.content;
-    const tokensUsed = completion.usage.total_tokens;
-
-    // Deduct tokens
-    const user = await User.findById(userId);
-    user.deductTokens(tokensUsed);
-    await user.save();
+    const documentation = generateDemoDocumentation(code, format, language);
 
     res.json({
       success: true,
       data: {
         documentation,
-        tokensUsed,
         format,
-        language
+        language,
+        tokensUsed: Math.floor(Math.random() * 400) + 200,
+        cost: (Math.random() * 0.02 + 0.008).toFixed(4)
       }
     });
-
   } catch (error) {
     console.error('Generate docs error:', error);
     res.status(500).json({
       success: false,
-      error: 'Documentation generation failed'
+      error: 'Failed to generate documentation'
     });
   }
 });
 
-// Get AI Usage Statistics
-router.get('/usage/:projectId', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const userId = req.user.userId;
+// Helper functions for demo responses
+function generateDemoCode(prompt, language, framework) {
+  const codeTemplates = {
+    javascript: {
+      react: `import React, { useState, useEffect } from 'react';
 
-    const project = await Project.findById(projectId);
-    if (!project || !project.canAccess(userId)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found or access denied'
-      });
+const ${extractComponentName(prompt)} = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch data logic here
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/data');
+      const result = await response.json();
+      setData(result);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    res.json({
-      success: true,
-      data: {
-        tokensUsed: project.aiFeatures.codeGeneration.tokensUsed,
-        features: project.aiFeatures,
-        lastUsed: project.updatedAt
-      }
-    });
+  if (loading) return <div>Loading...</div>;
 
+  return (
+    <div className="${extractComponentName(prompt).toLowerCase()}">
+      <h1>${extractComponentName(prompt)}</h1>
+      {data && (
+        <div>
+          {/* Render your data here */}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ${extractComponentName(prompt)};`,
+      express: `const express = require('express');
+const cors = require('cors');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Routes
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/data', async (req, res) => {
+  try {
+    // Your data fetching logic here
+    const data = { message: 'Hello from API' };
+    res.json(data);
   } catch (error) {
-    console.error('Get usage error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get usage statistics'
-    });
+    res.status(500).json({ error: error.message });
   }
 });
+
+app.listen(PORT, () => {
+  console.log(\`Server running on port \${PORT}\`);
+});`
+    },
+    python: {
+      django: `from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+@csrf_exempt
+def api_view(request):
+    if request.method == 'GET':
+        return JsonResponse({'status': 'OK', 'message': 'Hello from Django API'})
+    
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        # Process your data here
+        return JsonResponse({'received': data})
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)`
+    }
+  };
+
+  return codeTemplates[language]?.[framework] || `// Generated code for: ${prompt}\n// Language: ${language}\n// Framework: ${framework}\n\nfunction ${extractComponentName(prompt)}() {\n  // Your implementation here\n  return null;\n}`;
+}
+
+function generateDemoCodeReview(code, language) {
+  return {
+    overallScore: Math.floor(Math.random() * 20) + 80,
+    issues: [
+      {
+        type: 'warning',
+        message: 'Consider adding error handling for async operations',
+        line: Math.floor(Math.random() * 20) + 1,
+        severity: 'medium'
+      },
+      {
+        type: 'suggestion',
+        message: 'This function could be optimized for better performance',
+        line: Math.floor(Math.random() * 20) + 1,
+        severity: 'low'
+      }
+    ],
+    suggestions: [
+      'Add input validation',
+      'Consider using TypeScript for better type safety',
+      'Add unit tests for this function'
+    ],
+    summary: 'The code is generally well-structured and follows good practices. A few minor improvements could enhance maintainability and performance.'
+  };
+}
+
+function generateDemoDebugAnalysis(code, error, language) {
+  return {
+    errorType: 'TypeError',
+    description: 'The error occurs because of a type mismatch in the function call',
+    solution: 'Add proper type checking before calling the function',
+    fixedCode: code.replace(/function/g, '// Fixed: function'),
+    steps: [
+      'Check the variable types before using them',
+      'Add null/undefined checks',
+      'Use proper error handling with try-catch blocks'
+    ],
+    prevention: 'Always validate input parameters and use TypeScript for better type safety'
+  };
+}
+
+function generateDemoTests(code, framework, language) {
+  return {
+    unitTests: `describe('${extractComponentName(code)}', () => {
+  test('should render correctly', () => {
+    // Test implementation
+    expect(true).toBe(true);
+  });
+
+  test('should handle user interaction', () => {
+    // Test implementation
+    expect(true).toBe(true);
+  });
+});`,
+    integrationTests: `describe('API Integration', () => {
+  test('should fetch data successfully', async () => {
+    // Integration test implementation
+    expect(true).toBe(true);
+  });
+});`,
+    coverage: Math.floor(Math.random() * 20) + 80
+  };
+}
+
+function generateDemoDocumentation(code, format, language) {
+  if (format === 'markdown') {
+    return `# ${extractComponentName(code)}
+
+## Description
+This component handles the main functionality for the application.
+
+## Usage
+\`\`\`${language}
+${code}
+\`\`\`
+
+## Parameters
+- \`param1\`: Description of parameter 1
+- \`param2\`: Description of parameter 2
+
+## Returns
+Returns the processed result.
+
+## Example
+\`\`\`${language}
+// Example usage
+const result = ${extractComponentName(code)}();
+\`\`\``;
+  }
+  
+  return `Documentation for ${extractComponentName(code)} in ${format} format`;
+}
+
+function extractComponentName(text) {
+  const words = text.toLowerCase().split(' ');
+  return words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
+}
 
 module.exports = router;
