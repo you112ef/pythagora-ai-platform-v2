@@ -152,4 +152,5 @@ Dockerfile.dev
 
 # Local development
 local/
-dev/
+dev/.deployment-keys
+*.deployment-keys
