@@ -1,8 +1,34 @@
-# Pythagora AI Platform v2.0
+# 🚀 Pythagora AI Platform v2.0
 
-**World's First All-In-One AI Development Platform**
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/you112ef/pythagora-ai-platform-v2)
+[![Deploy to Render](https://img.shields.io/badge/Deploy-Render-brightgreen)](https://render.com/deploy?repo=https://github.com/you112ef/pythagora-ai-platform-v2)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-success)]()
+
+**🌟 World's First All-In-One AI Development Platform 🌟**
 
 An advanced, comprehensive AI-powered development platform that unites specifications, frontend, backend, debugging, and deployment in a single, powerful environment.
+
+---
+
+## ⚡ Quick Start
+
+**Deploy in 5 minutes:** [Read Quick Start Guide →](QUICK_START.md)
+
+```bash
+# Clone and deploy
+git clone https://github.com/you112ef/pythagora-ai-platform-v2.git
+cd pythagora-ai-platform-v2
+npm install
+npm start
+```
+
+Or deploy instantly:
+- [Deploy to Render](https://render.com/deploy?repo=https://github.com/you112ef/pythagora-ai-platform-v2)
+- [Deploy to Railway](https://railway.app/new/template?template=https://github.com/you112ef/pythagora-ai-platform-v2)
+
+---
 
 ## 🚀 Features
 
